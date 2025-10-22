@@ -20,34 +20,15 @@ export class Name {
 
     /** Expects that all Name components are properly masked */
     constructor(other: string[], delimiter?: string) {
-        this.components = other;
+        if (delimiter === ESCAPE_CHARACTER) {
+            throw new Error("Delimiter must not equal escape character");
+        }
+
+        this.components = [...other];
         
         if (delimiter !== undefined) {
             this.delimiter = delimiter;
         }
-    }
-
-    private escapeComponent(component: string, delimiter: string): string {
-        let escaped = "";
-        for (let i = 0; i < component.length; i++) {
-            if (component[i] === ESCAPE_CHARACTER) {
-                escaped += ESCAPE_CHARACTER + ESCAPE_CHARACTER;
-            } else if (component[i] === delimiter) {
-                escaped += ESCAPE_CHARACTER + delimiter;
-            } else {
-                escaped += component[i];
-            }
-        }
-        return escaped;
-    }
-
-    private asStringWithDelimiter(delimiter: string): string {
-        if (this.components.length === 0) {
-            return "";
-        }
-        return this.components
-            .map((component, index) => (index === 0 ? "" : delimiter) + this.escapeComponent(component, delimiter))
-            .join("");
     }
 
     /**
@@ -56,7 +37,7 @@ export class Name {
      * Users can vary the delimiter character to be used
      */
     public asString(delimiter: string = this.delimiter): string {
-        return this.asStringWithDelimiter(delimiter);
+        return this.components.join(delimiter);
     }
 
     /** 
@@ -108,4 +89,26 @@ export class Name {
         this.components.splice(i, 1);
     }
 
+    private escapeComponent(component: string, delimiter: string): string {
+        let escaped = "";
+        for (let i = 0; i < component.length; i++) {
+            if (component[i] === ESCAPE_CHARACTER) {
+                escaped += ESCAPE_CHARACTER + ESCAPE_CHARACTER;
+            } else if (component[i] === delimiter) {
+                escaped += ESCAPE_CHARACTER + delimiter;
+            } else {
+                escaped += component[i];
+            }
+        }
+        return escaped;
+    }
+
+    private asStringWithDelimiter(delimiter: string): string {
+        if (this.components.length === 0) {
+            return "";
+        }
+        return this.components
+            .map((component, index) => (index === 0 ? "" : delimiter) + this.escapeComponent(component, delimiter))
+            .join("");
+    }
 }

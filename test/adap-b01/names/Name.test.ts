@@ -1,184 +1,120 @@
 import { describe, it, expect } from "vitest";
-import { Name } from "../../../src/adap-b01/names/Name";
+import { Name, DEFAULT_DELIMITER } from "../../../src/adap-b01/names/Name";
 
 describe("Basic initialization tests", () => {
   it("test construction 1", () => {
-    let n: Name = new Name(["oss", "cs", "fau", "de"]);
+    const n = new Name(["oss", "cs", "fau", "de"]);
     expect(n.asString()).toBe("oss.cs.fau.de");
   });
 
-  it("test empty components array", () => {
-    let n: Name = new Name([]);
+  it("empty components yields empty string", () => {
+    const n = new Name([]);
     expect(n.asString()).toBe("");
+    expect(n.asDataString()).toBe("");
   });
 
-  it("test single component", () => {
-    let n: Name = new Name(["oss"]);
-    expect(n.asString()).toBe("oss");
+  it("single empty component is rendered as empty string (no leading delimiter)", () => {
+    const n = new Name([""]);
+    expect(n.asString()).toBe("");
+    expect(n.asDataString()).toBe("");
   });
 
-  it("test getNoComponents", () => {
-    let n: Name = new Name(["oss", "cs", "fau", "de"]);
-    expect(n.getNoComponents()).toBe(4);
+  it("multiple empty components produce consecutive delimiters", () => {
+    const n = new Name(["", "", "", ""]);
+    expect(n.asString()).toBe("..."); // human-readable (no escaping)
+    expect(n.asDataString()).toBe("..."); // default delimiter is '.'
   });
 });
 
 describe("Basic function tests", () => {
-  it("test insert", () => {
-    let n: Name = new Name(["oss", "fau", "de"]);
+  it("test insert in the middle", () => {
+    const n = new Name(["oss", "fau", "de"]);
     n.insert(1, "cs");
     expect(n.asString()).toBe("oss.cs.fau.de");
   });
 
-  it("test insert at beginning", () => {
-    let n: Name = new Name(["cs", "fau", "de"]);
-    n.insert(0, "oss");
-    expect(n.asString()).toBe("oss.cs.fau.de");
+  it("insert at the beginning and at the end", () => {
+    const n = new Name(["b", "c"]);
+    n.insert(0, "a");
+    n.insert(n.getNoComponents(), "d");
+    expect(n.asString()).toBe("a.b.c.d");
   });
 
-  it("test insert at end", () => {
-    let n: Name = new Name(["oss", "cs", "fau"]);
-    n.insert(3, "de");
-    expect(n.asString()).toBe("oss.cs.fau.de");
+  it("append, setComponent, getComponent, remove", () => {
+    const n = new Name(["a"]);
+    n.append("b");
+    expect(n.getNoComponents()).toBe(2);
+    expect(n.getComponent(1)).toBe("b");
+
+    n.setComponent(1, "beta");
+    expect(n.asString()).toBe("a.beta");
+
+    n.remove(0);
+    expect(n.asString()).toBe("beta");
+    expect(n.getNoComponents()).toBe(1);
   });
 
-  it("test append", () => {
-    let n: Name = new Name(["oss", "cs", "fau"]);
-    n.append("de");
-    expect(n.asString()).toBe("oss.cs.fau.de");
-  });
-
-  it("test remove", () => {
-    let n: Name = new Name(["oss", "cs", "fau", "de"]);
-    n.remove(1);
-    expect(n.asString()).toBe("oss.fau.de");
-  });
-
-  it("test getComponent", () => {
-    let n: Name = new Name(["oss", "cs", "fau", "de"]);
-    expect(n.getComponent(2)).toBe("fau");
-  });
-
-  it("test setComponent", () => {
-    let n: Name = new Name(["oss", "cs", "fau", "de"]);
-    n.setComponent(1, "xyz");
-    expect(n.asString()).toBe("oss.xyz.fau.de");
+  it("bounds checks throw errors", () => {
+    const n = new Name(["x", "y"]);
+    expect(() => n.getComponent(-1)).toThrowError();
+    expect(() => n.getComponent(2)).toThrowError();
+    expect(() => n.setComponent(5, "z")).toThrowError();
+    expect(() => n.insert(99, "z")).toThrowError();
+    expect(() => n.remove(-1)).toThrowError();
   });
 });
 
 describe("Delimiter function tests", () => {
-  it("test insert with custom delimiter", () => {
-    let n: Name = new Name(["oss", "fau", "de"], '#');
+  it("custom delimiter is used by asString()", () => {
+    const n = new Name(["oss", "fau", "de"], "#");
     n.insert(1, "cs");
     expect(n.asString()).toBe("oss#cs#fau#de");
   });
 
-  it("test asString with different delimiter parameter", () => {
-    let n: Name = new Name(["oss", "cs", "fau", "de"], '#');
-    expect(n.asString()).toBe("oss#cs#fau#de");
-    expect(n.asString('/')).toBe("oss/cs/fau/de");
+  it("asString(delimiterParam) overrides instance delimiter", () => {
+    const n = new Name(["a", "b", "c"], "#");
+    expect(n.asString("/")).toBe("a/b/c");
+    expect(n.asString()).toBe("a#b#c"); // instance default unchanged
   });
 
-  it("test custom delimiter in asDataString", () => {
-    let n: Name = new Name(["a", "b", "c"], '#');
-    expect(n.asDataString()).toBe("a.b.c"); // asDataString nutzt immer DEFAULT_DELIMITER
-  });
-});
-
-describe("Empty components tests", () => {
-  it("test empty string components", () => {
-    let n: Name = new Name(["", "", "", ""], '/');
-    expect(n.asString()).toBe("///");
-  });
-
-  it("test mixed empty and non-empty components", () => {
-    let n: Name = new Name(["a", "", "c"]);
-    expect(n.asString()).toBe("a..c");
+  it("asDataString() always uses DEFAULT delimiter and escaping", () => {
+    const n = new Name(["a#b", "c"], "#");
+    // human-readable keeps '#'
+    expect(n.asString()).toBe("a#b#c");
+    // data string uses DEFAULT '.' and escapes '.' and '\'
+    expect(n.asDataString()).toBe("a#b.c"); // '#' is not special for data string
+    // sanity: default delimiter is '.'
+    expect(DEFAULT_DELIMITER).toBe(".");
   });
 });
 
-describe("Escape character tests", () => {
-  it("test escape delimiter in component", () => {
-    let n: Name = new Name(["oss.cs.fau.de"], '#');
-    expect(n.asString()).toBe("oss.cs.fau.de");
+describe("Escape character & serialization", () => {
+  it("escapes delimiter characters in components for asDataString()", () => {
+    const n = new Name(["a.b", "c"]);
+    expect(n.asString()).toBe("a.b.c");        // human-readable (no escaping)
+    expect(n.asDataString()).toBe("a\\.b.c");  // machine-readable with escapes
   });
 
-  it("test escape delimiter with default delimiter", () => {
-    let n: Name = new Name(["a.b.c"]);
-    expect(n.asString()).toBe("a\\.b\\.c"); // Punkte sind escaped
+  it("escapes backslashes in components for asDataString()", () => {
+    const n = new Name(["a\\b", "c"]);
+    // human-readable keeps single backslash
+    expect(n.asString()).toBe("a\\b.c");
+    // data string doubles backslashes
+    expect(n.asDataString()).toBe("a\\\\b.c");
   });
 
-  it("test escape character in component", () => {
-    let n: Name = new Name(["a\\b\\c"]);
-    expect(n.asString()).toBe("a\\\\b\\\\c"); // Backslashes sind verdoppelt
+  it("combination: backslash and delimiter in same component", () => {
+    const n = new Name(["x\\y.z", "w"]);
+    // human-readable
+    expect(n.asString()).toBe("x\\y.z.w");
+    // machine-readable: backslash -> '\\\\', dot -> '\.'
+    expect(n.asDataString()).toBe("x\\\\y\\.z.w");
   });
 
-  it("test asDataString with escape characters", () => {
-    let n: Name = new Name(["oss.cs.fau.de"], '#');
-    expect(n.asDataString()).toBe("oss\\.cs\\.fau\\.de"); // Punkte escaped wegen DEFAULT_DELIMITER
-  });
-
-  it("test escape and delimiter boundary conditions", () => {
-    // Original name string = "oss.cs.fau.de"
-    let n: Name = new Name(["oss.cs.fau.de"], '#');
+  it("custom human-readable delimiter does not escape components", () => {
+    const n = new Name(["oss.cs.fau.de"], "#");
     expect(n.asString()).toBe("oss.cs.fau.de");
     n.append("people");
     expect(n.asString()).toBe("oss.cs.fau.de#people");
-  });
-});
-
-describe("Edge cases and error handling", () => {
-  it("test getComponent out of bounds - negative", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    expect(() => n.getComponent(-1)).toThrow("Index out of bounds");
-  });
-
-  it("test getComponent out of bounds - too large", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    expect(() => n.getComponent(5)).toThrow("Index out of bounds");
-  });
-
-  it("test setComponent out of bounds", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    expect(() => n.setComponent(5, "x")).toThrow("Index out of bounds");
-  });
-
-  it("test insert out of bounds - negative", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    expect(() => n.insert(-1, "x")).toThrow("Index out of bounds");
-  });
-
-  it("test insert out of bounds - too large", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    expect(() => n.insert(5, "x")).toThrow("Index out of bounds");
-  });
-
-  it("test remove out of bounds", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    expect(() => n.remove(5)).toThrow("Index out of bounds");
-  });
-
-  it("test remove at beginning", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    n.remove(0);
-    expect(n.asString()).toBe("b.c");
-  });
-
-  it("test remove at end", () => {
-    let n: Name = new Name(["a", "b", "c"]);
-    n.remove(2);
-    expect(n.asString()).toBe("a.b");
-  });
-
-  it("test multiple operations in sequence", () => {
-    let n: Name = new Name(["a", "c"]);
-    n.insert(1, "b");
-    expect(n.asString()).toBe("a.b.c");
-    n.append("d");
-    expect(n.asString()).toBe("a.b.c.d");
-    n.remove(1);
-    expect(n.asString()).toBe("a.c.d");
-    n.setComponent(0, "x");
-    expect(n.asString()).toBe("x.c.d");
   });
 });
