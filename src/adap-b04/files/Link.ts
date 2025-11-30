@@ -1,5 +1,7 @@
 import { Node } from "./Node";
 import { Directory } from "./Directory";
+import { IllegalArgumentException } from "../common/IllegalArgumentException";
+import { InvalidStateException } from "../common/InvalidStateException";
 
 export class Link extends Node {
 
@@ -18,6 +20,9 @@ export class Link extends Node {
     }
 
     public setTargetNode(target: Node): void {
+        // Precondition: target must not be null/undefined
+        IllegalArgumentException.assert(target !== null && target !== undefined, "target must not be null or undefined");
+        
         this.targetNode = target;
     }
 
@@ -27,11 +32,17 @@ export class Link extends Node {
     }
 
     public rename(bn: string): void {
+        // Precondition: bn must not be null/undefined
+        IllegalArgumentException.assert(bn !== null && bn !== undefined, "baseName must not be null or undefined");
+        
         const target = this.ensureTargetNode(this.targetNode);
         target.rename(bn);
     }
 
     protected ensureTargetNode(target: Node | null): Node {
+        // Precondition: targetNode must be set (not null)
+        InvalidStateException.assert(target !== null && target !== undefined, "target node must be set");
+        
         const result: Node = this.targetNode as Node;
         return result;
     }

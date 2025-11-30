@@ -30,4 +30,22 @@ export class RootNode extends Directory {
         // null operation
     }
 
+    protected assertClassInvariants(): void {
+        // RootNode has special invariants - it is its own parent
+        // Do not call super.assertClassInvariants() as it would fail
+        
+        const InvalidStateException = require("../common/InvalidStateException").InvalidStateException;
+        // Invariant: RootNode is its own parent
+        InvalidStateException.assert(this.parentNode === this, "RootNode must be its own parent");
+        // Invariant: baseName must be empty string
+        InvalidStateException.assert(this.baseName === "", "RootNode baseName must be empty string");
+    }
+
+    protected assertDirectoryClassInvariants(): void {
+        // RootNode has special invariants
+        const InvalidStateException = require("../common/InvalidStateException").InvalidStateException;
+        // Invariant: childNodes must exist (inherited from Directory)
+        InvalidStateException.assert(this.childNodes !== null && this.childNodes !== undefined, "childNodes must not be null or undefined");
+    }
+
 }
